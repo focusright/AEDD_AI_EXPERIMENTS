@@ -445,7 +445,7 @@ void BuildFrame(app::AppState& app, float delta_seconds) {
 
     ImGui::SetNextWindowPos(ImVec2(p.x + pad, row_y + content_h + pad), ImGuiCond_Always);
     ImGui::SetNextWindowSize(ImVec2(s.x - 2.0f * pad, timeline_h), ImGuiCond_Always);
-    timeline::DrawTimelinePanel(app.anim, app.selection, app.scene, app.history, app.cmd_ctx, io);
+    timeline::DrawTimelinePanel(app, app.history, app.cmd_ctx, io);
 }
 
 } // namespace aetdp1::imgui_layer

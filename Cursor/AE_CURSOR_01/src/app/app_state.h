@@ -57,6 +57,10 @@ struct AppState {
     int inspector_vertex_index_cache{-1};
     bool startup_layout_applied{false};
 
+    // Timeline key list: which key is selected for delete (must match `selection.active_object` track).
+    ObjectId timeline_selected_key_object{kInvalidObjectId};
+    float timeline_selected_key_time{-1.f};
+
     std::wstring pending_load_path{};
     std::wstring pending_save_path{};
 };
