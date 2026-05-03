@@ -215,6 +215,15 @@ static void DrawInspector(app::AppState& app) {
     ImGui::DragFloat3("Translation", &o->transform.translation.x, 0.01f);
     ImGui::DragFloat3("Scale", &o->transform.scale.x, 0.01f, 0.01f, 50.f);
     ImGui::DragFloat4("Rotation (qx,qy,qz,qw)", &o->transform.rotation.x, 0.01f);
+    {
+        XMVECTOR q = XMLoadFloat4(&o->transform.rotation);
+        const float len2 = XMVectorGetX(XMVector4LengthSq(q));
+        if (len2 > 1e-20f) {
+            XMStoreFloat4(&o->transform.rotation, XMQuaternionNormalize(q));
+        } else {
+            o->transform.rotation = {0.f, 0.f, 0.f, 1.f};
+        }
+    }
     ImGui::ColorEdit3("Color", &o->color.x);
 
     if (ImGui::Button("Commit transform (undoable)")) {

@@ -20,7 +20,15 @@ struct Transform {
 
 inline DirectX::XMMATRIX TransformToMatrix(const Transform& t) {
     using namespace DirectX;
-    const XMVECTOR q = XMLoadFloat4(&t.rotation);
+    // XMMatrixRotationQuaternion expects a unit quaternion; independent DragFloat4 edits break that
+    // and read as skew / non-uniform scale in the viewport.
+    XMVECTOR q = XMLoadFloat4(&t.rotation);
+    const float len2 = XMVectorGetX(XMVector4LengthSq(q));
+    if (len2 > 1e-20f) {
+        q = XMQuaternionNormalize(q);
+    } else {
+        q = XMQuaternionIdentity();
+    }
     const XMMATRIX r = XMMatrixRotationQuaternion(q);
     const XMMATRIX s = XMMatrixScaling(t.scale.x, t.scale.y, t.scale.z);
     const XMMATRIX tr = XMMatrixTranslation(t.translation.x, t.translation.y, t.translation.z);
