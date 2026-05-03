@@ -43,10 +43,16 @@ void DrawTimelinePanel(animation::AnimationDocument& anim, const selection::Sele
 
     ImGui::Separator();
     ImGui::Text("Scrub");
-    const float before_time = anim.current_time_seconds;
-    ImGui::SliderFloat("##time", &anim.current_time_seconds, 0.f, std::max(0.25f, anim.duration_seconds), "%.3f s");
-    if (before_time != anim.current_time_seconds) {
-        animation::EvaluateTransformTracksAtTime(anim, scene, anim.current_time_seconds);
+    // While playing, do not bind `current_time_seconds` to SliderFloat: if the scrub slider stays active,
+    // SliderBehavior overwrites time from the mouse each frame and cancels the main loop's playback advance.
+    if (anim.playback.playing && !anim.playback.paused) {
+        ImGui::Text("%.3f s  (pause playback to scrub)", anim.current_time_seconds);
+    } else {
+        const float before_time = anim.current_time_seconds;
+        ImGui::SliderFloat("##time", &anim.current_time_seconds, 0.f, std::max(0.25f, anim.duration_seconds), "%.3f s");
+        if (before_time != anim.current_time_seconds) {
+            animation::EvaluateTransformTracksAtTime(anim, scene, anim.current_time_seconds);
+        }
     }
 
     ImGui::Separator();

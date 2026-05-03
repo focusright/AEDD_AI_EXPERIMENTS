@@ -230,6 +230,11 @@ int WINAPI wWinMain(HINSTANCE hinst, HINSTANCE, PWSTR, int) {
 
         aetdp1::imgui_layer::BuildFrame(app, io.DeltaTime);
 
+        // Re-apply animation after UI so a frame's widgets cannot leave the scene between pre-UI eval and render.
+        if (app.anim.playback.playing && !app.anim.playback.paused) {
+            aetdp1::animation::EvaluateTransformTracksAtTime(app.anim, app.scene, app.anim.current_time_seconds);
+        }
+
         ImGui::Render();
 
         app.renderer.ResizeViewportTexture(static_cast<std::uint32_t>(std::max(1, app.viewport_ui.w)),
