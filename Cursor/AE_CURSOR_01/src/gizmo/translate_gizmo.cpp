@@ -100,26 +100,41 @@ GizmoAxis TranslateGizmo::HitTestScreenSpace(const viewport::OrbitCamera& camera
 }
 
 XMFLOAT3 TranslateGizmo::TranslationDeltaFromMouseDelta(const viewport::OrbitCamera& camera, FXMVECTOR origin_world, GizmoAxis axis, int mouse_dx, int mouse_dy,
-                                                      int viewport_w, int viewport_h) const {
-    (void)viewport_w;
-    (void)viewport_h;
-    XMVECTOR right{};
-    XMVECTOR up{};
-    CameraBasisXY(camera, &right, &up);
-
+                                                      int viewport_w, int viewport_h, float axis_length_world) const {
     const XMVECTOR axis_w = XMVector3Normalize(AxisUnit(axis));
+    const XMVECTOR p0 = origin_world;
+    const XMVECTOR p1 = XMVectorAdd(origin_world, XMVectorScale(axis_w, axis_length_world));
 
-    // Sensitivity scales with distance so dragging feels stable-ish at different zoom levels.
-    const XMVECTOR eye_offset = XMVectorSubtract(origin_world, XMLoadFloat3(&camera.target));
-    const float dist = std::max(0.5f, XMVectorGetX(XMVector3Length(eye_offset)));
-    const float sens = 0.0025f * dist;
+    float x0, y0, x1, y1;
+    WorldToScreen(camera, p0, viewport_w, viewport_h, &x0, &y0);
+    WorldToScreen(camera, p1, viewport_w, viewport_h, &x1, &y1);
+
+    const float sdx = x1 - x0;
+    const float sdy = y1 - y0;
+    const float screen_len = std::hypotf(sdx, sdy);
 
     const float du = static_cast<float>(mouse_dx);
     const float dv = static_cast<float>(mouse_dy);
-    const XMVECTOR mouse_plane = XMVectorAdd(XMVectorScale(right, du * sens), XMVectorScale(up, -dv * sens));
 
-    const float along = XMVectorGetX(XMVector3Dot(mouse_plane, axis_w));
-    const XMVECTOR delta = XMVectorScale(axis_w, along);
+    float world_along = 0.f;
+    if (screen_len > 1.5f) {
+        // 1:1 map: pixels moved along the on-screen axis × (world arm length / screen arm length in px).
+        const float inv_len = 1.f / screen_len;
+        const float pixel_along = (du * sdx + dv * sdy) * inv_len;
+        world_along = pixel_along * (axis_length_world * inv_len);
+    } else {
+        // Axis nearly end-on in view: screen segment degenerates; fall back to camera-plane heuristic.
+        XMVECTOR right{};
+        XMVECTOR up{};
+        CameraBasisXY(camera, &right, &up);
+        const XMVECTOR eye_offset = XMVectorSubtract(origin_world, XMLoadFloat3(&camera.target));
+        const float dist = std::max(0.5f, XMVectorGetX(XMVector3Length(eye_offset)));
+        const float sens = 0.0025f * dist;
+        const XMVECTOR mouse_plane = XMVectorAdd(XMVectorScale(right, du * sens), XMVectorScale(up, -dv * sens));
+        world_along = XMVectorGetX(XMVector3Dot(mouse_plane, axis_w));
+    }
+
+    const XMVECTOR delta = XMVectorScale(axis_w, world_along);
     XMFLOAT3 out{};
     XMStoreFloat3(&out, delta);
     return out;

@@ -14,8 +14,9 @@ struct TranslateGizmo {
                                  int viewport_h, float hit_radius_pixels, float axis_length_world) const;
 
     // Produces a world-space translation delta for the active axis from a mouse pixel delta.
+    // `axis_length_world` must match the drawn gizmo arm length (world units) for 1:1 screen motion along the axis.
     DirectX::XMFLOAT3 TranslationDeltaFromMouseDelta(const viewport::OrbitCamera& camera, DirectX::FXMVECTOR origin_world, GizmoAxis axis, int mouse_dx,
-                                                    int mouse_dy, int viewport_w, int viewport_h) const;
+                                                    int mouse_dy, int viewport_w, int viewport_h, float axis_length_world) const;
 };
 
 } // namespace aetdp1::gizmo

@@ -366,10 +366,11 @@ static void DrawViewport(app::AppState& app) {
     if (app.gizmo_drag.active && ImGui::IsMouseDown(ImGuiMouseButton_Left)) {
         scene::ObjectData* go = app.scene.TryGet(app.gizmo_drag.object);
         if (go) {
-            const XMVECTOR origin_press = XMLoadFloat3(&app.gizmo_drag.gizmo_origin_press);
+            // Use current translation each frame so the on-screen axis matches the live pose (cursor-sticky drag).
+            const XMVECTOR origin_now = XMLoadFloat3(&go->transform.translation);
             const DirectX::XMFLOAT3 d = app.translate_gizmo.TranslationDeltaFromMouseDelta(
-                app.viewport.camera, origin_press, static_cast<gizmo::GizmoAxis>(app.gizmo_drag.axis), static_cast<int>(io.MouseDelta.x),
-                static_cast<int>(io.MouseDelta.y), w, h);
+                app.viewport.camera, origin_now, static_cast<gizmo::GizmoAxis>(app.gizmo_drag.axis), static_cast<int>(io.MouseDelta.x),
+                static_cast<int>(io.MouseDelta.y), w, h, app.gizmo.axis_length_world);
             go->transform.translation.x += d.x;
             go->transform.translation.y += d.y;
             go->transform.translation.z += d.z;
