@@ -7,7 +7,7 @@
 - Windows SDK.
 - A DirectX 12 capable GPU or WARP fallback.
 
-No CMake is required. The project intentionally uses a plain Visual Studio solution after CMake caused configure hangs in this environment.
+The project uses a plain Visual Studio solution and batch-file build path.
 
 ## Build From Command Line
 

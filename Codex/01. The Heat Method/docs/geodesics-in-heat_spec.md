@@ -800,7 +800,7 @@ Suggested:
 
 ```text
 /HeatMethodDx12Demo
-    CMakeLists.txt or HeatMethodDx12Demo.sln
+    HeatMethodDx12Demo.sln
     /src
         main.cpp
         App.h
@@ -826,8 +826,6 @@ Suggested:
         HEAT_METHOD_DEMO_NOTES.md
         BUILD.md
 ```
-
-If using CMake, document exact build steps.
 
 If using a Visual Studio solution, document exact Visual Studio version and required SDK.
 
