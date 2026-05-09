@@ -24,9 +24,18 @@ rhs_i = sum over faces area * dot(X_face, grad(lambda_i))
 
 After solving, `phi` is shifted by subtracting its minimum value so the smallest distance is zero.
 
-## Why a Sphere
+## Mesh Choices
 
-The generated unit sphere is simple, closed, and has an analytic smooth geodesic distance:
+The demo can generate four built-in meshes:
+
+- Sphere: closed UV sphere with one top pole, one bottom pole, and no duplicated pole vertices.
+- U-Folded Plane: an open rectangular grid folded into a U-shaped sheet.
+- Swiss Roll: an open ribbon rolled into a spiral.
+- Bunny / Suzanne: a connected procedural character-head mesh with snout and ear-like protrusions.
+
+All meshes use the same heat solve, source picking, visualization modes, soft-selection controls, and displacement preview. The non-sphere meshes are generated procedurally so the demo stays standalone.
+
+The sphere also has an analytic smooth geodesic distance:
 
 ```text
 exact_i = acos(dot(normalize(p_i), normalize(p_source)))
@@ -36,7 +45,7 @@ That lets the demo show mean and maximum error against a known reference. The di
 
 ## Mesh and Operators
 
-The mesh is a CPU-generated UV sphere with one top pole, one bottom pole, and no duplicated pole vertices. Interior latitude rings contain `longitudeSegments` vertices.
+Each mesh is generated on the CPU as positions, triangles, display positions, and vertex normals. The two resolution sliders act as the sphere longitude/latitude counts or as the U/V grid counts for the folded sheets.
 
 For every triangle, the code builds:
 
@@ -99,13 +108,13 @@ Then the falloff power is applied:
 w = pow(w, falloffPower)
 ```
 
-In displaced mode, each displayed vertex is moved outward along its sphere normal by:
+In displaced mode, each displayed vertex is moved along its vertex normal by:
 
 ```text
 normal * weight * displacementAmount
 ```
 
-The original sphere positions are kept separate, so the preview never permanently edits the mesh.
+The original mesh positions are kept separate, so the preview never permanently edits the mesh.
 
 ## Analytic Validation
 
@@ -117,7 +126,7 @@ meanRelative = meanError / pi
 maxRelative = maxError / pi
 ```
 
-The "Analytic Error" visualization maps low error to dark blue and high error to red.
+The "Analytic Error" visualization maps low error to dark blue and high error to red for the sphere. Other meshes do not have an analytic reference in this demo, so diagnostics mark the analytic reference as unavailable.
 
 ## Known Limitations
 
@@ -126,5 +135,6 @@ The "Analytic Error" visualization maps low error to dark blue and high error to
 - UV sphere triangles near the poles are not ideal, but they are sufficient for this visualization.
 - Heat-method distance approximates smooth geodesic distance; results improve with mesh refinement.
 - Source selection is vertex-based, not arbitrary point-on-triangle.
-- The demo uses a closed surface, so no boundary conditions are implemented.
+- The U-folded plane and Swiss roll are open meshes that use the natural boundary behavior of the weak-form solve.
+- The Bunny / Suzanne mesh is procedural and stylized rather than loaded from a scanned model asset.
 - The UI blocks while dense matrix factorizations run; this keeps the implementation simple and transparent.

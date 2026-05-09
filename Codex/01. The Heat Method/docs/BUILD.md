@@ -50,13 +50,14 @@ Run:
 x64\Release\HeatMethodDx12Demo.exe
 ```
 
-On startup the app builds a triangulated sphere, prefactors the heat and Poisson matrices, computes distance from the current source vertex, and opens a DirectX 12 window with an ImGui control panel.
+On startup the app builds the selected mesh, prefactors the heat and Poisson matrices, computes distance from the current source vertex, and opens a DirectX 12 window with an ImGui control panel.
 
 ## Controls
 
 - Drag with the left or right mouse button to orbit the camera.
 - Use the mouse wheel to zoom.
 - Resize or maximize the window to resize the DirectX 12 viewport.
+- Choose Sphere, U-Folded Plane, Swiss Roll, or Bunny / Suzanne from "Mesh Type".
 - Edit "Source Vertex" or press "Recompute Distance" to change the source.
 - Enable "Pick Source With Mouse" and Ctrl-left-click near a visible vertex to select it.
 - Change soft-selection radius, falloff, smoothstep, and displacement without rerunning the heat solve.
@@ -66,7 +67,7 @@ On startup the app builds a triangulated sphere, prefactors the heat and Poisson
 ## Troubleshooting
 
 - If command-line MSBuild fails with a duplicate `PATH` or `Path` environment key, use `build_vs2022.bat` instead of invoking MSBuild directly.
-- If matrix factorization fails at very high or unusual mesh settings, lower the sphere resolution and rebuild.
+- If matrix factorization fails at very high or unusual mesh settings, lower the mesh resolution and rebuild.
 - Dense Cholesky is intentionally slow compared with a sparse implementation. The default mesh is chosen to keep the demo understandable while still showing the geodesic field clearly.
 
 ## Known Limitations
@@ -76,4 +77,4 @@ On startup the app builds a triangulated sphere, prefactors the heat and Poisson
 - UV sphere triangles near poles are not ideal but sufficient for the demo.
 - Heat-method distance approximates smooth geodesic distance; exactness improves with mesh refinement.
 - Source selection is vertex-based, not arbitrary point-on-triangle.
-- The demo uses a closed surface, so no boundary conditions are implemented.
+- The U-folded plane and Swiss roll are open meshes that use the natural boundary behavior of the same weak-form solve.

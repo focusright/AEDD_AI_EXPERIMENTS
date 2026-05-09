@@ -71,6 +71,25 @@ Color WeightRamp(double w)
     }
     return Lerp(blue, hot, (w - 0.45) / 0.55);
 }
+
+double Gaussian3(const Vec3& p, const Vec3& center, double sx, double sy, double sz)
+{
+    const double dx = (p.x - center.x) / sx;
+    const double dy = (p.y - center.y) / sy;
+    const double dz = (p.z - center.z) / sz;
+    return std::exp(-(dx * dx + dy * dy + dz * dz));
+}
+}
+
+const char* MeshKindName(MeshKind kind)
+{
+    switch (kind) {
+    case MeshKind::Sphere: return "Sphere";
+    case MeshKind::UFoldedPlane: return "U-Folded Plane";
+    case MeshKind::SwissRoll: return "Swiss Roll";
+    case MeshKind::BunnySuzanne: return "Bunny / Suzanne";
+    default: return "Unknown";
+    }
 }
 
 const char* VisualizationModeName(VisualizationMode mode)
@@ -87,7 +106,7 @@ const char* VisualizationModeName(VisualizationMode mode)
 
 bool HeatMethodSolver::RebuildMeshAndFactors()
 {
-    GenerateSphere();
+    GenerateMesh();
     BuildMassAndStiffness();
     ComputeMeanEdgeLength();
     BuildHeatMatrix();
@@ -123,6 +142,28 @@ bool HeatMethodSolver::RefactorHeatMatrix()
         return false;
     }
     return RecomputeDistance();
+}
+
+void HeatMethodSolver::GenerateMesh()
+{
+    switch (meshKind) {
+    case MeshKind::Sphere:
+        GenerateSphere();
+        break;
+    case MeshKind::UFoldedPlane:
+        GenerateUFoldedPlane();
+        break;
+    case MeshKind::SwissRoll:
+        GenerateSwissRoll();
+        break;
+    case MeshKind::BunnySuzanne:
+        GenerateBunnySuzanne();
+        break;
+    default:
+        meshKind = MeshKind::Sphere;
+        GenerateSphere();
+        break;
+    }
 }
 
 void HeatMethodSolver::GenerateSphere()
@@ -179,12 +220,199 @@ void HeatMethodSolver::GenerateSphere()
         AddTriangleOutward(bottom, ringIndex(lastRing, lon), ringIndex(lastRing, lon + 1));
     }
 
+    FinalizeGeneratedMesh(MeshKindName(MeshKind::Sphere), true);
+}
+
+void HeatMethodSolver::GenerateUFoldedPlane()
+{
+    longitudeSegments = std::max(12, std::min(96, longitudeSegments));
+    latitudeSegments = std::max(6, std::min(48, latitudeSegments));
+
+    basePositions.clear();
+    normals.clear();
+    triangles.clear();
+    indices.clear();
+
+    const int uCount = longitudeSegments + 1;
+    const int vCount = latitudeSegments + 1;
+    basePositions.reserve(static_cast<size_t>(uCount * vCount));
+    triangles.reserve(static_cast<size_t>(longitudeSegments * latitudeSegments * 2));
+
+    const double thetaMin = -0.78 * Pi;
+    const double thetaMax = 0.78 * Pi;
+    const double radius = 0.75;
+    const double height = 1.85;
+
+    for (int v = 0; v < vCount; ++v) {
+        const double y = (static_cast<double>(v) / static_cast<double>(latitudeSegments) - 0.5) * height;
+        for (int uIndex = 0; uIndex < uCount; ++uIndex) {
+            const double t = static_cast<double>(uIndex) / static_cast<double>(longitudeSegments);
+            const double theta = thetaMin + (thetaMax - thetaMin) * t;
+            basePositions.push_back({radius * std::sin(theta), y, radius * std::cos(theta)});
+        }
+    }
+
+    auto gridIndex = [uCount](int uIndex, int v) {
+        return v * uCount + uIndex;
+    };
+
+    for (int v = 0; v < latitudeSegments; ++v) {
+        for (int uIndex = 0; uIndex < longitudeSegments; ++uIndex) {
+            const int a = gridIndex(uIndex, v);
+            const int b = gridIndex(uIndex + 1, v);
+            const int c = gridIndex(uIndex, v + 1);
+            const int d = gridIndex(uIndex + 1, v + 1);
+            AddTriangle(a, b, c);
+            AddTriangle(b, d, c);
+        }
+    }
+
+    CenterAndScaleBasePositions(1.15);
+    FinalizeGeneratedMesh(MeshKindName(MeshKind::UFoldedPlane), false);
+}
+
+void HeatMethodSolver::GenerateSwissRoll()
+{
+    longitudeSegments = std::max(12, std::min(96, longitudeSegments));
+    latitudeSegments = std::max(6, std::min(48, latitudeSegments));
+
+    basePositions.clear();
+    normals.clear();
+    triangles.clear();
+    indices.clear();
+
+    const int uCount = longitudeSegments + 1;
+    const int vCount = latitudeSegments + 1;
+    basePositions.reserve(static_cast<size_t>(uCount * vCount));
+    triangles.reserve(static_cast<size_t>(longitudeSegments * latitudeSegments * 2));
+
+    for (int v = 0; v < vCount; ++v) {
+        const double y = (static_cast<double>(v) / static_cast<double>(latitudeSegments) - 0.5) * 0.85;
+        for (int uIndex = 0; uIndex < uCount; ++uIndex) {
+            const double t = static_cast<double>(uIndex) / static_cast<double>(longitudeSegments);
+            const double theta = 0.65 * Pi + 4.4 * Pi * t;
+            const double radius = 0.18 + 0.88 * t;
+            basePositions.push_back({radius * std::cos(theta), y, radius * std::sin(theta)});
+        }
+    }
+
+    auto gridIndex = [uCount](int uIndex, int v) {
+        return v * uCount + uIndex;
+    };
+
+    for (int v = 0; v < latitudeSegments; ++v) {
+        for (int uIndex = 0; uIndex < longitudeSegments; ++uIndex) {
+            const int a = gridIndex(uIndex, v);
+            const int b = gridIndex(uIndex + 1, v);
+            const int c = gridIndex(uIndex, v + 1);
+            const int d = gridIndex(uIndex + 1, v + 1);
+            AddTriangle(a, b, c);
+            AddTriangle(b, d, c);
+        }
+    }
+
+    CenterAndScaleBasePositions(1.15);
+    FinalizeGeneratedMesh(MeshKindName(MeshKind::SwissRoll), false);
+}
+
+void HeatMethodSolver::GenerateBunnySuzanne()
+{
+    longitudeSegments = std::max(12, std::min(96, longitudeSegments));
+    latitudeSegments = std::max(6, std::min(48, latitudeSegments));
+
+    basePositions.clear();
+    normals.clear();
+    triangles.clear();
+    indices.clear();
+
+    auto deformedPoint = [](const Vec3& direction) {
+        Vec3 p = {0.78 * direction.x, 0.82 * direction.y, 0.72 * direction.z};
+
+        const double muzzle = Gaussian3(direction, {0.0, -0.10, 0.88}, 0.42, 0.38, 0.22);
+        p.z += 0.34 * muzzle;
+        p.y -= 0.07 * muzzle;
+
+        const double leftCheek = Gaussian3(direction, {-0.40, -0.12, 0.68}, 0.28, 0.34, 0.24);
+        const double rightCheek = Gaussian3(direction, {0.40, -0.12, 0.68}, 0.28, 0.34, 0.24);
+        p.x -= 0.13 * leftCheek;
+        p.x += 0.13 * rightCheek;
+        p.z += 0.12 * (leftCheek + rightCheek);
+
+        const double leftSideEar = Gaussian3(direction, {-0.92, 0.04, 0.02}, 0.22, 0.46, 0.36);
+        const double rightSideEar = Gaussian3(direction, {0.92, 0.04, 0.02}, 0.22, 0.46, 0.36);
+        p.x -= 0.42 * leftSideEar;
+        p.x += 0.42 * rightSideEar;
+        p.y += 0.03 * (leftSideEar + rightSideEar);
+
+        const double leftTallEar = Gaussian3(direction, {-0.25, 0.92, 0.08}, 0.14, 0.18, 0.24);
+        const double rightTallEar = Gaussian3(direction, {0.25, 0.92, 0.08}, 0.14, 0.18, 0.24);
+        p.x -= 0.10 * leftTallEar;
+        p.x += 0.10 * rightTallEar;
+        p.y += 0.58 * (leftTallEar + rightTallEar);
+        p.z += 0.07 * (leftTallEar + rightTallEar);
+
+        const double leftEyeDent = Gaussian3(direction, {-0.27, 0.12, 0.86}, 0.16, 0.18, 0.12);
+        const double rightEyeDent = Gaussian3(direction, {0.27, 0.12, 0.86}, 0.16, 0.18, 0.12);
+        p.z -= 0.08 * (leftEyeDent + rightEyeDent);
+
+        return p;
+    };
+
+    basePositions.push_back(deformedPoint({0.0, 1.0, 0.0}));
+
+    for (int lat = 1; lat < latitudeSegments; ++lat) {
+        const double theta = Pi * static_cast<double>(lat) / static_cast<double>(latitudeSegments);
+        const double y = std::cos(theta);
+        const double ringRadius = std::sin(theta);
+        for (int lon = 0; lon < longitudeSegments; ++lon) {
+            const double angle = 2.0 * Pi * static_cast<double>(lon) / static_cast<double>(longitudeSegments);
+            const Vec3 direction = {ringRadius * std::cos(angle), y, ringRadius * std::sin(angle)};
+            basePositions.push_back(deformedPoint(direction));
+        }
+    }
+
+    const int bottom = static_cast<int>(basePositions.size());
+    basePositions.push_back(deformedPoint({0.0, -1.0, 0.0}));
+
+    auto ringIndex = [this](int lat, int lon) {
+        const int wrappedLon = (lon + longitudeSegments) % longitudeSegments;
+        return 1 + (lat - 1) * longitudeSegments + wrappedLon;
+    };
+
+    for (int lon = 0; lon < longitudeSegments; ++lon) {
+        AddTriangleOutward(0, ringIndex(1, lon + 1), ringIndex(1, lon));
+    }
+
+    for (int lat = 1; lat < latitudeSegments - 1; ++lat) {
+        for (int lon = 0; lon < longitudeSegments; ++lon) {
+            const int a = ringIndex(lat, lon);
+            const int b = ringIndex(lat, lon + 1);
+            const int c = ringIndex(lat + 1, lon);
+            const int d = ringIndex(lat + 1, lon + 1);
+            AddTriangleOutward(a, b, c);
+            AddTriangleOutward(b, d, c);
+        }
+    }
+
+    const int lastRing = latitudeSegments - 1;
+    for (int lon = 0; lon < longitudeSegments; ++lon) {
+        AddTriangleOutward(bottom, ringIndex(lastRing, lon), ringIndex(lastRing, lon + 1));
+    }
+
+    CenterAndScaleBasePositions(1.12);
+    FinalizeGeneratedMesh(MeshKindName(MeshKind::BunnySuzanne), false);
+}
+
+void HeatMethodSolver::FinalizeGeneratedMesh(const char* meshName, bool analyticErrorAvailable)
+{
     indices.reserve(triangles.size() * 3u);
     for (const Tri& tri : triangles) {
         indices.push_back(static_cast<uint32_t>(tri.a));
         indices.push_back(static_cast<uint32_t>(tri.b));
         indices.push_back(static_cast<uint32_t>(tri.c));
     }
+
+    ComputeVertexNormals();
 
     const size_t n = basePositions.size();
     displayPositions = basePositions;
@@ -198,9 +426,76 @@ void HeatMethodSolver::GenerateSphere()
     sourceVertex = std::max(0, std::min(sourceVertex, static_cast<int>(n) - 1));
 
     diagnostics = {};
+    diagnostics.meshName = meshName;
+    diagnostics.analyticErrorAvailable = analyticErrorAvailable;
     diagnostics.vertexCount = static_cast<int>(n);
     diagnostics.triangleCount = static_cast<int>(triangles.size());
-    diagnostics.status = "Sphere mesh generated.";
+    diagnostics.status = std::string(meshName) + " mesh generated.";
+}
+
+void HeatMethodSolver::CenterAndScaleBasePositions(double targetRadius)
+{
+    if (basePositions.empty()) {
+        return;
+    }
+
+    Vec3 minCorner = basePositions[0];
+    Vec3 maxCorner = basePositions[0];
+    for (const Vec3& p : basePositions) {
+        minCorner.x = std::min(minCorner.x, p.x);
+        minCorner.y = std::min(minCorner.y, p.y);
+        minCorner.z = std::min(minCorner.z, p.z);
+        maxCorner.x = std::max(maxCorner.x, p.x);
+        maxCorner.y = std::max(maxCorner.y, p.y);
+        maxCorner.z = std::max(maxCorner.z, p.z);
+    }
+
+    const Vec3 center = (minCorner + maxCorner) * 0.5;
+    double maxDistance = 0.0;
+    for (const Vec3& p : basePositions) {
+        maxDistance = std::max(maxDistance, Length(p - center));
+    }
+
+    if (maxDistance <= 1e-12) {
+        return;
+    }
+
+    const double scale = targetRadius / maxDistance;
+    for (Vec3& p : basePositions) {
+        p = (p - center) * scale;
+    }
+}
+
+void HeatMethodSolver::ComputeVertexNormals()
+{
+    normals.assign(basePositions.size(), {});
+    for (const Tri& tri : triangles) {
+        const Vec3& p0 = basePositions[static_cast<size_t>(tri.a)];
+        const Vec3& p1 = basePositions[static_cast<size_t>(tri.b)];
+        const Vec3& p2 = basePositions[static_cast<size_t>(tri.c)];
+        const Vec3 faceNormal = Cross(p1 - p0, p2 - p0);
+        if (!IsFinite(faceNormal) || LengthSquared(faceNormal) <= 1e-24) {
+            continue;
+        }
+        normals[static_cast<size_t>(tri.a)] += faceNormal;
+        normals[static_cast<size_t>(tri.b)] += faceNormal;
+        normals[static_cast<size_t>(tri.c)] += faceNormal;
+    }
+
+    for (size_t i = 0; i < normals.size(); ++i) {
+        if (LengthSquared(normals[i]) > 1e-24) {
+            normals[i] = Normalize(normals[i]);
+        } else if (LengthSquared(basePositions[i]) > 1e-24) {
+            normals[i] = Normalize(basePositions[i]);
+        } else {
+            normals[i] = {0.0, 1.0, 0.0};
+        }
+    }
+}
+
+void HeatMethodSolver::AddTriangle(int a, int b, int c)
+{
+    triangles.push_back({a, b, c});
 }
 
 void HeatMethodSolver::AddTriangleOutward(int a, int b, int c)
@@ -359,7 +654,7 @@ bool HeatMethodSolver::RecomputeDistance()
 
     ComputeAnalyticError();
     RecomputeWeightsAndVisuals();
-    diagnostics.status = "Distance recomputed with existing Cholesky factors.";
+    diagnostics.status = diagnostics.meshName + ": distance recomputed with existing Cholesky factors.";
     return true;
 }
 
@@ -476,6 +771,16 @@ void HeatMethodSolver::ComputeAnalyticError()
         return;
     }
 
+    if (!diagnostics.analyticErrorAvailable) {
+        std::fill(exactPhi.begin(), exactPhi.end(), 0.0);
+        std::fill(error.begin(), error.end(), 0.0);
+        diagnostics.meanAbsError = 0.0;
+        diagnostics.maxAbsError = 0.0;
+        diagnostics.meanRelativeError = 0.0;
+        diagnostics.maxRelativeError = 0.0;
+        return;
+    }
+
     const Vec3 source = Normalize(basePositions[static_cast<size_t>(sourceVertex)]);
     double sumError = 0.0;
     double maxError = 0.0;
@@ -561,6 +866,10 @@ Color HeatMethodSolver::ColorForVertex(int vertexIndex) const
     case VisualizationMode::DisplacedSoftWeight:
         return WeightRamp(weights[i]);
     case VisualizationMode::AnalyticError: {
+        if (!diagnostics.analyticErrorAvailable) {
+            const double t = diagnostics.maxPhi > 1e-12 ? phi[i] / diagnostics.maxPhi : 0.0;
+            return HeatRamp(t);
+        }
         const double maxError = std::max(1e-12, diagnostics.maxAbsError);
         const double t = Clamp01(error[i] / maxError);
         const Color low = {0.02f, 0.08f, 0.22f, 1.0f};

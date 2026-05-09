@@ -716,8 +716,19 @@ void HeatMethodApp::DrawUi()
     ImGui::Begin("Heat Method Demo");
 
     if (ImGui::CollapsingHeader("Mesh", ImGuiTreeNodeFlags_DefaultOpen)) {
-        ImGui::SliderInt("Longitude Segments", &pendingLongitudeSegments, 12, 96);
-        ImGui::SliderInt("Latitude Segments", &pendingLatitudeSegments, 6, 48);
+        const char* meshNames[] = {
+            "Sphere",
+            "U-Folded Plane",
+            "Swiss Roll",
+            "Bunny / Suzanne"
+        };
+        int meshKind = static_cast<int>(solver.meshKind);
+        if (ImGui::Combo("Mesh Type", &meshKind, meshNames, IM_ARRAYSIZE(meshNames))) {
+            solver.meshKind = static_cast<HeatDemo::MeshKind>(meshKind);
+            RebuildDemo();
+        }
+        ImGui::SliderInt("U/Longitude Segments", &pendingLongitudeSegments, 12, 96);
+        ImGui::SliderInt("V/Latitude Segments", &pendingLatitudeSegments, 6, 48);
         if (ImGui::Button("Rebuild Mesh")) {
             RebuildDemo();
         }
@@ -811,8 +822,10 @@ void HeatMethodApp::DrawUi()
 
     if (ImGui::CollapsingHeader("Diagnostics", ImGuiTreeNodeFlags_DefaultOpen)) {
         const HeatDemo::HeatDiagnostics& d = solver.Diagnostics();
+        ImGui::Text("Mesh: %s", d.meshName.c_str());
         ImGui::Text("Vertices: %d", d.vertexCount);
         ImGui::Text("Triangles: %d", d.triangleCount);
+        ImGui::Text("Analytic reference: %s", d.analyticErrorAvailable ? "sphere" : "not available");
         ImGui::Text("Mean edge h: %.6f", d.meanEdgeLength);
         ImGui::Text("Timestep t: %.6f", d.timestep);
         ImGui::Text("Degenerate triangles: %d", d.degenerateTriangleCount);

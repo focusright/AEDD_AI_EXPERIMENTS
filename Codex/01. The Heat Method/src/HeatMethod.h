@@ -10,6 +10,14 @@
 
 namespace HeatDemo
 {
+enum class MeshKind
+{
+    Sphere = 0,
+    UFoldedPlane,
+    SwissRoll,
+    BunnySuzanne
+};
+
 enum class VisualizationMode
 {
     Distance = 0,
@@ -19,13 +27,16 @@ enum class VisualizationMode
     AnalyticError
 };
 
+const char* MeshKindName(MeshKind kind);
 const char* VisualizationModeName(VisualizationMode mode);
 
 struct HeatDiagnostics
 {
+    std::string meshName;
     int vertexCount = 0;
     int triangleCount = 0;
     int degenerateTriangleCount = 0;
+    bool analyticErrorAvailable = false;
     double meanEdgeLength = 0.0;
     double timestep = 0.0;
     bool heatFactorOk = false;
@@ -54,6 +65,7 @@ struct HeatDiagnostics
 class HeatMethodSolver
 {
 public:
+    MeshKind meshKind = MeshKind::Sphere;
     int longitudeSegments = 48;
     int latitudeSegments = 24;
     int sourceVertex = 0;
@@ -99,7 +111,15 @@ private:
     DenseCholesky poissonFactor;
     HeatDiagnostics diagnostics;
 
+    void GenerateMesh();
     void GenerateSphere();
+    void GenerateUFoldedPlane();
+    void GenerateSwissRoll();
+    void GenerateBunnySuzanne();
+    void FinalizeGeneratedMesh(const char* meshName, bool analyticErrorAvailable);
+    void CenterAndScaleBasePositions(double targetRadius);
+    void ComputeVertexNormals();
+    void AddTriangle(int a, int b, int c);
     void AddTriangleOutward(int a, int b, int c);
     void BuildMassAndStiffness();
     void BuildHeatMatrix();
