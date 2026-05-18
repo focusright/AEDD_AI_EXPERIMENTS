@@ -123,6 +123,7 @@ int WINAPI wWinMain(HINSTANCE hinst, HINSTANCE, PWSTR cmdline, int) {
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGui::StyleColorsDark();
+    ImGui::GetIO().IniFilename = nullptr;
     ImGui_ImplWin32_Init(hwnd);
 
     ImGui_ImplDX12_InitInfo init_info{};

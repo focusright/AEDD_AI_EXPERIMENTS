@@ -1,6 +1,7 @@
 #include "rig_ui.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdio>
 #include <filesystem>
 
@@ -162,11 +163,9 @@ void RigUiUpdateDocument(AppState& app) {
     doc.validation_messages = RigValidator::Validate(doc);
 }
 
-void RigUiFrame(AppState& app, float dt) {
+static void DrawToolsPanel(AppState& app, float dt) {
     RigDocument& doc = app.doc;
     AnimationTickPlayback(doc, dt);
-
-    ImGui::Begin("AERIGP1 — Rig / Skin / Animate");
     if (ImGui::RadioButton("Rig", doc.mode == EditorMode::Rig)) {
         doc.mode = EditorMode::Rig;
     }
@@ -268,14 +267,16 @@ void RigUiFrame(AppState& app, float dt) {
     if (!doc.last_status.empty()) {
         ImGui::TextWrapped("%s", doc.last_status.c_str());
     }
-    ImGui::End();
+}
 
-    ImGui::Begin("Viewport");
-    ImVec2 sz = ImGui::GetContentRegionAvail();
-    app.viewport_w = static_cast<int>(std::max(64.f, sz.x));
-    app.viewport_h = static_cast<int>(std::max(64.f, sz.y));
-    app.renderer.ResizeViewportTexture(static_cast<std::uint32_t>(app.viewport_w), static_cast<std::uint32_t>(app.viewport_h));
-    ImGui::Image(app.renderer.ViewportSrvGpuHandle(), sz);
+static void DrawViewportPanel(AppState& app) {
+    const ImVec2 avail = ImGui::GetContentRegionAvail();
+    const int w = std::max(4, static_cast<int>(std::floor(avail.x)));
+    const int h = std::max(4, static_cast<int>(std::floor(avail.y)));
+    app.viewport_w = w;
+    app.viewport_h = h;
+    app.renderer.ResizeViewportTexture(static_cast<std::uint32_t>(w), static_cast<std::uint32_t>(h));
+    ImGui::Image(app.renderer.ViewportSrvGpuHandle(), ImVec2(static_cast<float>(w), static_cast<float>(h)));
     if (ImGui::IsItemHovered() && ImGui::IsMouseDragging(ImGuiMouseButton_Right)) {
         const ImVec2 d = ImGui::GetIO().MouseDelta;
         app.cam_yaw += d.x * 0.01f;
@@ -286,12 +287,36 @@ void RigUiFrame(AppState& app, float dt) {
         app.cam_dist -= ImGui::GetIO().MouseWheel * 0.15f;
         app.cam_dist = std::clamp(app.cam_dist, 1.f, 12.f);
     }
+}
+
+void RigUiFrame(AppState& app, float dt) {
+    const ImGuiViewport* main_vp = ImGui::GetMainViewport();
+    const ImVec2 origin = main_vp->WorkPos;
+    const ImVec2 size = main_vp->WorkSize;
+    const float pad = 8.f;
+    const float tools_w = std::max(340.f, size.x * 0.24f);
+    const float content_h = size.y - pad * 2.f;
+    const float viewport_w = std::max(480.f, size.x - tools_w - pad * 3.f);
+    const ImGuiWindowFlags panel_flags = ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoSavedSettings;
+
+    ImGui::SetNextWindowPos(ImVec2(origin.x + pad, origin.y + pad), ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2(tools_w, content_h), ImGuiCond_Always);
+    ImGui::Begin("AERIGP1 — Rig / Skin / Animate", nullptr, panel_flags);
+    DrawToolsPanel(app, dt);
     ImGui::End();
+
+    ImGui::SetNextWindowPos(ImVec2(origin.x + pad * 2.f + tools_w, origin.y + pad), ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2(viewport_w, content_h), ImGuiCond_Always);
+    ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.f, 0.f));
+    ImGui::Begin("Viewport", nullptr, panel_flags);
+    DrawViewportPanel(app);
+    ImGui::End();
+    ImGui::PopStyleVar();
 
     RigUiUpdateDocument(app);
     static int validation_log_cooldown = 0;
     if (validation_log_cooldown <= 0) {
-        RigValidator::PrintToDebug(doc.validation_messages);
+        RigValidator::PrintToDebug(app.doc.validation_messages);
         validation_log_cooldown = 120;
     } else {
         --validation_log_cooldown;

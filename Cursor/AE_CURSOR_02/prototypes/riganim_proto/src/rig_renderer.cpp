@@ -254,8 +254,8 @@ bool RigRenderer::Create(HWND hwnd) {
     GetClientRect(hwnd_, &cr);
     client_w_ = std::max(1u, static_cast<std::uint32_t>(cr.right - cr.left));
     client_h_ = std::max(1u, static_cast<std::uint32_t>(cr.bottom - cr.top));
-    viewport_w_ = std::max(4u, std::min(client_w_, 960u));
-    viewport_h_ = std::max(4u, std::min(client_h_, 720u));
+    viewport_w_ = std::max(4u, client_w_);
+    viewport_h_ = std::max(4u, client_h_);
     if (!CreateViewportTarget(viewport_w_, viewport_h_)) {
         return false;
     }
