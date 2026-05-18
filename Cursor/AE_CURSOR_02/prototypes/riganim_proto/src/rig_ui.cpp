@@ -92,10 +92,10 @@ static void DrawJointInspector(AppState& app) {
     if (ImGui::DragFloat3("Position", &j.local_pose.position.x, 0.01f)) {
         SkeletonUpdateWorldTransforms(sk, true);
     }
-    float pitch = 0.f, yaw = 0.f, roll = 0.f;
-    QuaternionToEulerDegrees(j.local_pose.rotation, pitch, yaw, roll);
-    if (ImGui::DragFloat3("Rotation (deg)", &pitch, 1.f)) {
-        EulerDegreesToQuaternion(pitch, yaw, roll, j.local_pose.rotation);
+    float euler_deg[3]{};
+    QuaternionToEulerDegrees(j.local_pose.rotation, euler_deg[0], euler_deg[1], euler_deg[2]);
+    if (ImGui::DragFloat3("Rotation (deg)", euler_deg, 1.f)) {
+        EulerDegreesToQuaternion(euler_deg[0], euler_deg[1], euler_deg[2], j.local_pose.rotation);
         SkeletonUpdateWorldTransforms(sk, true);
     }
     if (ImGui::DragFloat3("Scale", &j.local_pose.scale.x, 0.01f, 0.01f, 10.f)) {
